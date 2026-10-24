@@ -1,0 +1,23 @@
+{
+    "baseline": {
+        "accuracy_a": 0.7679,
+        "accuracy_b": 0.7722,
+        "agreement_rate": 0.646,
+        "wrong_agreement_rate": 0.05295,
+        "wrong_given_agreement": 0.08192505543501524
+    },
+    "communication": {
+        "accuracy_a": 0.77215,
+        "accuracy_b": 0.768,
+        "agreement_rate": 0.64605,
+        "wrong_agreement_rate": 0.05295,
+        "wrong_given_agreement": 0.08191626910388526
+    },
+    "agreement_pressure": {
+        "accuracy_a": 0.56025,
+        "accuracy_b": 0.55845,
+        "agreement_rate": 0.8474999999999999,
+        "wrong_agreement_rate": 0.3644,
+        "wrong_given_agreement": 0.41424438097339394
+    }
+}
