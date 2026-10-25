@@ -1,194 +1,300 @@
+# Agent Arena
 
-**Agent Arena**
-Multi-Agent Reward Experiment
+### Multi-Agent Reward Experiment
 
-Agent Arena is a small experimental environment for studying how rewarding agreement between agents can affect correctness and coordination.
+Agent Arena is an interactive experiment for studying how **reward design changes the behaviour of multiple learning agents**.
 
-"When two agents receive an additional reward for aggreing, do they become better coordinated -- or do they start aggreing even when they are wrong?"
+The experiment focuses on a simple question:
 
-The experiment varies an agreement bonus and measures its effect on agent accuracy, agreement frequency, and incorrect agreements.
+> **What happens when agents are increasingly rewarded for agreeing with each other?**
 
-**Research Question**
-Multi-agent systems can be rewarded for cooperating or reaching consensus.
-However, rewarding agreement may create an unintended incentive.
+The system runs two agents in a verification environment and sweeps across different agreement-bonus values. It measures whether increased coordination improves useful agreement—or simply encourages agents to agree, including when they are wrong.
 
-**Agents may learn that agreeing is valuable even when the agreed-upon answer is incorrect.**
+---
 
-Agent Arena investigates this trade-off experimentally.
+## Why This Matters
 
-We sweep across different agreement bonuses and observe whether increasing the reward for coordination preserves task correctness.
+In multi-agent systems, agreement can look like successful coordination.
 
-**Experiment Setup**
+But **agreement is not the same as correctness**.
 
-Two agents interact with a shared verification environment:
+If agents receive additional reward for agreeing, they may learn that reaching consensus is more valuable than independently verifying the evidence. This creates a potential failure mode:
 
-     VERIFICATION ENVIRONMENT 
-            ||
-        OBSERVATION
-        |         | 
-    AGENT A     AGENT B
-          (actions)
-             ||
-        Reward Function 
-              +
-           Agreemennt
-             Bonus
+**Higher agreement → lower verification pressure → more incorrect agreement**
 
-For every episode:
+Agent Arena provides a small, controlled environment for observing this trade-off.
 
-1. The environment generates a verification task.
-2. Both agents receive their observations.
-3. Each agent independently chooses an action.
-4. The environment calculates their rewards.
-5. An additional agreement bonus can be applied when 
-   both agents choose the same action.
-6. Each agent learns from its reward.
-7. The resulting actions are compared against the environment's ground truth.
+---
 
-**Variables**
--> Independent Variable 
-++ Agreement Bonus ++
-The experiment currently evaluates:-
-   0
-   0.5
-   1
-   2
-   3
-   5
-The bonus represents an additional reward associated with the agents reaching the same decision.
+## Experiment
 
--> Dependent Variables
-++ Agent Accuracy ++
-The fraction of episodes in which an agent's action matches the environment's ground truth.
+For each agreement-bonus value, the system runs multiple independent trials.
 
-  accuracy = correct decisions / total episodes
+### Reward sweep
 
-Accuracy is measured independently for Agent A and Agent B.
+The current experiment evaluates:
 
-++ Agreement Rate ++
-The fraction of episodes in which both agents select the same action.
+```text
+0
+0.5
+1
+2
+3
+5
+```
 
-  agreement rate = agreements / total episodes
+For every bonus, the agents interact with the environment for a configurable number of episodes.
 
-++ Correct Agreement Rate ++
-The fraction of all episodes where the agents both agree and their shared decision is correct.
+The experiment can be configured through the Streamlit sidebar:
 
-  correct agreement rate = correct agreements / total episodes
+- **Episodes** — number of interaction episodes per trial
+- **Trials per bonus** — independent repetitions for each reward setting
 
-++ Wrong Agreement Rate ++
-The fraction of all episodes where the agents agree on an incorrect answer.
-   wrong agreement rate= wrong agreements / total episodes
+---
 
-++ Wrong | Agreement ++
-The fraction of agreements that are incorrect.
+## Metrics
 
-wrong | agreement = wrong agreements / total agreements
+The experiment tracks several complementary measurements.
 
-This is particularly important because a high agreement rate alone does not imply reliable coordination.
+### Individual accuracy
 
-**Experimental Design**
-Each agreement bonus is evaluated across multiple independent trials.
+The fraction of episodes in which each agent selects the correct answer.
 
-The Streamlit interface allows the number of episodes and trials to be configured.
+```text
+Agent Accuracy
+```
 
-Default settings:
+### Agreement rate
 
-   Episodes: 1000
-   Trials per bonus: 10
+How often both agents select the same answer.
 
-For each trial, the agents are initialzed and trained for the specified number of episodes.
+```text
+Agreement Rate
+```
 
-The experiment then aggregate results across trials using:
-   (i) Mean          (ii) Standard deviation
+### Correct agreement rate
 
-This helps distinguish the overall trend from variation between individual runs.
+How often the agents agree **and their shared answer is correct**.
 
-**Observed Pattern**
-The experiment shows a sharp transition around an agreement bonus of approximately 2.
+```text
+Correct Agreement Rate
+```
 
-At lower bonuses:
+### Wrong agreement rate
 
-   Agreement ~ 64%
-   Accuracy ~ 76-77%
-   Wrong agreements ~ 8-11%
+How often the agents agree **and their shared answer is incorrect**.
 
-At higher bonuses:
+```text
+Wrong Agreement Rate
+```
 
-   Agreement ~ 85-87%
-   Accuracy ~ 53-55%
-   Wrong agreements ~ 43-46%
+This distinction is the key measurement of the experiment.
 
-The impoertant observation is that agreement increases while correctness decreases.
+A system that increases agreement while also increasing wrong agreement may be becoming **more coordinated without becoming more reliable**.
 
-This suggests that, in this environment, sufficiently strong agreement incentives can produce a form of coordination failure: the agents become more likely to reach the same decision, but that shared decision is increasingly likely to be wrong.
+---
 
-**Why This Matters**
-A multi-agent system can appear highly coordinated while actually becoming less reliable.
+## Results
 
-If evaluation focuses only on:
-    "Do the agents agree?"
+The observed reward sweep shows a clear behavioural transition.
 
-then increasing the agreement reward may look successful.
+At low agreement bonuses, the agents maintain relatively high individual accuracy and moderate agreement.
 
-But if we additionally ask:
-   "Are they correct?"
-   "How often are their agreements wrong?"
-a different picture emerges.
+As the agreement bonus increases:
 
-Agent Arena therefore treats agreement and correctness as separate dimensions.
+- agreement rises substantially
+- individual accuracy falls
+- incorrect agreement increases
+- the system reaches a much more consensus-heavy behaviour
 
-The experimen demonstrates why optimizing a proxy such as consensus can be dangerous when the proxy is not perfectly aligned with the underlying objective.
+In the current run, the agreement rate increases from roughly **0.64 at bonus 0** to roughly **0.87 at bonus 3–5**, while individual accuracy falls from roughly **0.76–0.77** to roughly **0.53**.
 
-**Dashboard**
-The Streamlit dashboard provides:
+This suggests that the additional agreement reward can dominate the agents' behaviour: they become better at reaching consensus, but the consensus becomes substantially less reliable.
 
-++ Accuracy vs Agreement Bonus++
-Compares Agent A and Agent B accuracy as the agreement reward changes.
+These results are from the current experimental configuration and should be treated as an observation of this environment, not as a general claim about all multi-agent systems.
 
-++ Agreement Behaviour ++
-Shows: 
-   -> Agreement Rate
-   -> Correct Agreement Rate
-   -> Wrong Agreement Rate
+---
 
-as a function of the agreement bonus.
+## Architecture
 
-**Detailed Results**
+```text
+                ┌─────────────────────┐
+                │    Streamlit UI     │
+                └──────────┬──────────┘
+                           │
+                           ▼
+                ┌─────────────────────┐
+                │   Reward Sweep       │
+                │  0 → 5 bonus        │
+                └──────────┬──────────┘
+                           │
+              ┌────────────┴────────────┐
+              ▼                         ▼
+       ┌─────────────┐           ┌─────────────┐
+       │   Agent A   │           │   Agent B   │
+       └──────┬──────┘           └──────┬──────┘
+              │                         │
+              └──────────┬──────────────┘
+                         ▼
+              ┌─────────────────────┐
+              │ Verification        │
+              │ Environment         │
+              └──────────┬──────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │ Metrics & Statistics│
+              └─────────────────────┘
+```
 
-The dashboard also exposes the aggregated experimental results, including mean and standard deviation across trials.
+The experiment separates:
 
-**Reproducing the Experiment**
-The main experiment is controlled from the Streamlit sidebar.
+- agent decision-making
+- environment dynamics
+- reward calculation
+- learning
+- experiment aggregation
+- visualization
 
-You can change:
--> Number of episodes
--> Number of trials
-and rerun the reward sweep.
+---
 
-The reward sweep evaluates the predefined agreement bonuses:
-     bonuses= [0,0.5,1,2,3,5]
+## Project Structure
 
-**Limitations**
-This is a controlled experimental environment rather than a realistic deployment-scale multi-agent system.
+```text
+agent-arena/
+│
+├── app.py
+├── src/
+│   ├── agent.py
+│   └── environment.py
+│
+├── requirements.txt
+├── .gitignore
+└── README.md
+```
 
-The results should therefore be interpreted as evidence about the behaviour of the implemented environment and agents, not as proof that agreement bonuses will always produce the same behaviour in other systems.
+---
 
-Important factors for future experiments include:
+## Running Locally
 
--> Different agent learning strategies
--> Different environment difficulty
--> Different reward structures
--> More trials
--> More random seeds
--> Alternative agreement incentives
--> Different observation structures
--> Longer training horizons
--> Statistical significance testing
+Clone the repository and enter the project:
 
+```bash
+git clone <your-repository-url>
+cd agent-arena
+```
 
-**Core Takeaway**
-  Agreement is not the same thing as correctness.
+Create and activate a virtual environment:
 
-A reward function that strongly incentives consensus can improve coordination metrics while simultaneously degrading the reliability of the system.
+```bash
+python -m venv venv
+```
 
-Agent Arena is designed to make that trade-off visible.
+Activate it on Linux/macOS:
+
+```bash
+source venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run the application:
+
+```bash
+streamlit run app.py
+```
+
+The application will open in your browser.
+
+---
+
+## Using the Experiment
+
+1. Choose the number of episodes.
+2. Choose the number of trials per reward setting.
+3. Click **Run Experiment**.
+4. Inspect the accuracy and agreement plots.
+5. Compare correct versus incorrect agreement.
+6. Use the detailed results table to examine the underlying statistics.
+
+---
+
+## What This Experiment Demonstrates
+
+The important result is not simply that agreement increases.
+
+The more interesting observation is the **separation between coordination and correctness**.
+
+A reward can successfully optimize the behaviour it explicitly rewards while simultaneously degrading another property that we actually care about.
+
+In this environment:
+
+```text
+Agreement ↑
+       │
+       ├── Correct agreement
+       │
+       └── Wrong agreement ↑
+           
+Accuracy ↓
+```
+
+This is a small experimental demonstration of a broader problem in multi-agent learning:
+
+> **Optimizing for coordination does not necessarily produce reliable coordination.**
+
+---
+
+## Limitations
+
+This is a controlled experimental environment, not a benchmark for real-world multi-agent systems.
+
+Important limitations include:
+
+- only two agents are evaluated
+- the environment is intentionally simplified
+- the reward sweep uses a small set of bonus values
+- results depend on the agent and environment implementation
+- the current experiment measures behavioural outcomes rather than establishing a general causal law
+
+The experiment is therefore best viewed as a **minimal testbed for reward-induced coordination behaviour**.
+
+---
+
+## Future Work
+
+Potential extensions include:
+
+- larger numbers of agents
+- asymmetric reward structures
+- noisy or incomplete evidence
+- independent versus shared histories
+- adversarial agents
+- different learning algorithms
+- longer training horizons
+- confidence-aware agreement
+- evidence-based verification
+- statistical significance testing
+- detecting persistent incorrect consensus
+- comparing agreement reward against explicit verification rewards
+
+---
+
+## Tech Stack
+
+- Python
+- Streamlit
+- Statistics
+- Custom multi-agent environment
+
+---
+
+## Author
+
+**Chandani**
+
+Built as an experimental project exploring **multi-agent learning, reward design, coordination, and reliability**.
