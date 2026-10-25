@@ -1,5 +1,5 @@
 import streamlit as st
-
+import statistics
 from src.agent import Agent
 from src.environment import VerificationEnvironment
 
@@ -8,9 +8,8 @@ st.set_page_config(
     layout= "wide"
 )
 
-# TITLE 
 st.title(" Agent Arena ")
-#SUBHEADER
+
 st.subheader(" Multi Agent Reward Experiment")
 
 st.write("Explore how changing the reward structure affects "
@@ -29,15 +28,19 @@ episodes= st.sidebar.slider(
     step=100,
 )
 
-agreement_bonus= st.sidebar.slider(
-"Agreement Bonus",
-min_value=0.0,
-max_value=5.0, 
-value=0.0,
-step=0.5
+trials =  st.sidebar.slider(
+    "Trials per bonus ",
+    min_value=2,
+    max_value=20,
+    value = 10,
+    step= 1
 )
 
-def run_experiment(agreement_bonus, episodes):
+def run_experiment(agreement_bonus, episodes, seed= None):
+    if seed is not None:
+        import random
+        random.seed(seed)
+
     env= VerificationEnvironment()
 
     agent_a= Agent()
@@ -46,6 +49,7 @@ def run_experiment(agreement_bonus, episodes):
     correct_a=0
     correct_b=0
     agreements=0
+    correct_agreements=0
     wrong_agreements=0
 
     for _ in range(episodes):
@@ -79,138 +83,202 @@ def run_experiment(agreement_bonus, episodes):
         if action_a==action_b:
             agreements+=1
 
-            if action_a != env.truth:
+            if action_a == env.truth:
+                correct_agreements+=1
+            else:
                 wrong_agreements+=1
 
     accuracy_a= correct_a / episodes
     accuracy_b= correct_b/ episodes 
     agreement_rate= agreements / episodes
 
+    correct_agreement_rate = correct_agreements / episodes
+    wrong_agreement_rate = wrong_agreements / episodes
+
     if agreements > 0:
         wrong_given_agreement=(wrong_agreements/agreements)
+        correct_given_agreement= correct_agreements / agreements
     else:
         wrong_given_agreement=0
+        correct_given_agreement=0
+
     return { 
         "accuracy_a": accuracy_a,
         "accuracy_b":accuracy_b,
         "agreement_rate": agreement_rate,
-        "wrong_given_agreement": wrong_given_agreement
+        "wrong_given_agreement": wrong_given_agreement,
+        "correct_given_agreement": correct_given_agreement,
+        "correct_agreement_rate":correct_agreement_rate,
+        "wrong_agreement_rate": wrong_agreement_rate,
     }
+
+def run_reward_sweep(episodes, trials):
+    bonuses=[0,0.5,1,2,3,5]
+    results= []
+
+    for bonus in bonuses:
+
+        trial_results=[]
+    
+        for trial in range(trials):
+            result = run_experiment(
+                agreement_bonus=bonus,
+                episodes=episodes,
+                seed= trial
+            )
+            trial_results.append(result)
+
+        results.append({
+            "Agreement Bonus": bonus,
+            "Agent A Accuracy Mean": sum(
+                r["accuracy_a"] for r in trial_results
+                )/trials,
+
+            "Agent A Accuracy Std": statistics.stdev(
+                r["accuracy_a"] for r in trial_results
+            ),
+
+            "Agent B Accuracy Mean": sum(
+                r["accuracy_b"] for r in trial_results
+            )/trials,
+
+            "Agent B Accuracy Std": statistics.stdev(
+                r["accuracy_b"] for r in trial_results
+            ),
+
+            "Agreement Rate Mean": sum(
+                r["agreement_rate"] for r in trial_results
+            )/trials,
+
+            "Agreement Rate Std": statistics.stdev(
+                r["agreement_rate"] for r in trial_results
+            ),
+
+            "Wrong | Agreement Mean": sum(
+                r["wrong_given_agreement"]
+                for r in trial_results
+            )/trials,
+
+            "Wrong | Agreement Std": statistics.stdev(
+                r["wrong_given_agreement"] for r in trial_results
+            ),
+
+            "Correct | Agreement Mean": sum(
+                r["correct_given_agreement"]
+                for r in trial_results
+            )/trials,
+
+            "Correct | Agreement Std": statistics.stdev(
+                r["correct_given_agreement"] for r in trial_results
+            ),
+
+            "Correct Agreement Rate Mean": sum(
+                r["correct_agreement_rate"] for r in trial_results
+            )/trials,
+
+            "Wrong Agreement Rate Mean": sum(
+                r["wrong_agreement_rate"] for r in trial_results
+            )/trials,
+
+            "Correct Agreement Rate Std":statistics.stdev(
+                r["correct_agreement_rate"] for r in trial_results
+            ),
+
+            "Wrong Agreement Rate Std": statistics.stdev(
+                r["wrong_agreement_rate"] for r in trial_results
+            ),
+
+        })
+
+    return results
+
 
 #RUN EXPERIMENT
-
 if st.button("▶ Run Experiment"):
-    baseline = run_experiment(
-        agreement_bonus=0,
-        episodes= episodes
-    )
-    pressure= run_experiment(
-        agreement_bonus= agreement_bonus,
-        episodes= episodes
-    )
-    st.session_state["baseline"] = baseline
-    st.session_state["pressure"]= pressure
+    with st.spinner("Running Agent Arena Experiment..."):
+        sweep_results= run_reward_sweep(episodes, trials)
+
+    st.session_state["sweep_results"] = sweep_results
+
     
 #RESULTS
+if "sweep_results" in st.session_state:
 
-if "baseline" in st.session_state:
-
-    baseline= st.session_state["baseline"]
-    pressure= st.session_state["pressure"]
+    results= st.session_state["sweep_results"]
 
     st.divider()
-    st.header("Experiments Results")
+    st.header("Reward Sweep Results")
+
+    st.write(
+        "How does increasing the agreement reward affect "
+        "accuracy, agreement, and incorrect agreement?"
+    )
 
     chart_data={
-        "Metric": [
-            "Agent A Accuracy",
-            "Agent B Accuracy",
-            "Agreement Rate",
-            "Wrong | Agreement"
+        "Agreement Bonus": [
+            r["Agreement Bonus"] for r in results
         ],
-        "Baseline":[
-            baseline["accuracy_a"],
-            baseline["accuracy_b"],
-            baseline["agreement_rate"],
-            baseline["wrong_given_agreement"]
+        "Agent A Accuracy":[
+            r["Agent A Accuracy Mean"] for r in results
         ],
-        "Agreement Pressure":[
-            pressure["accuracy_a"],
-            pressure["accuracy_b"],
-            pressure["agreement_rate"],
-            pressure["wrong_given_agreement"]
-        ]
+        "Agent B Accuracy":[
+            r["Agent B Accuracy Mean"] for r in results
+        ],
+        "Agreement Rate":[
+            r["Agreement Rate Mean"] for r in results
+        ],
+        "Wrong | Agreement":[
+            r["Wrong | Agreement Mean"] for r in results
+        ],
+        "Correct | Agreement":[
+            r["Correct | Agreement Mean"] for r in results
+        ],
+        "Correct Agreement Rate":[
+            r["Correct Agreement Rate Mean"] for r in results
+        ],
+        "Wrong Agreement Rate":[
+            r["Wrong Agreement Rate Mean"] for r in results
+        ],  
     }
 
-    st.bar_chart(
+    # Accuracy chart
+    st.subheader("Accuracy vs Agreement Bonus")
+
+    st.line_chart(
         chart_data,
-        x= "Metric",
-        y=["Baseline", "Agreement Pressure"]
+        x="Agreement Bonus",
+        y=[
+            "Agent A Accuracy",
+            "Agent B Accuracy",
+        ]
+    )
+
+    # Agreement behaviour chart
+
+    st.subheader("Agreement Behaviour")
+
+    st.line_chart(
+        chart_data,
+        x= "Agreement Bonus",
+        y=[
+            "Agreement Rate",
+            "Correct Agreement Rate",
+            "Wrong Agreement Rate"
+        ]
+    )
+    # Raw results table
+
+    st.subheader("Detailed Results")
+
+    st.dataframe(
+        results,
+        width="stretch"
     )
 
     st.info(
-        "When agreement is rewarded, agents may learn to coordinate"
-        "more strongly-even when that coordination leads to incorrect decisions."
+        "Increasing the agreement reward can push agents toward"
+        "higher agreement. The important question is whether this"
+        "coordination preserves correctness or increases incorrect"
+        "agreements."
     )
-
-    st.write(
-        "Does rewarding agreement improve cooperation "
-        "or encourage agents to agree when they are wrong?"
-    )
-
-    col1, col2 = st.columns(2)
-    
-    #BASELINE
-    with col1:
-        st.subheader(" 🔵Baseline")
-
-        st.caption("Agreement bonus= 0")
-        
-        st.metric(
-            "Agent A Accuracy",
-            f"{baseline["accuracy_a"]:.1%}"
-        )
-
-        st.metric(
-            "Agent B Accuracy",
-            f"{baseline["accuracy_b"]:.1%}"
-        )
-
-        st.metric(
-            "Agreement Rate",
-            f"{baseline["agreement_rate"]:.1%}"
-        )
-
-        st.metric("Wrong Agreement",
-        f"{baseline["wrong_given_agreement"]:.1%}"
-        )
-
-    # AGREEMENT PRESSURE
-    with col2:
-        st.subheader("🔴 Agreement Pressure")
-
-        st.caption(
-            f"Agreement bonus={agreement_bonus}"
-        )
-
-        st.metric(
-            "Agent A Accuracy",
-            f"{pressure["accuracy_a"]:.1%}"
-        )
-        
-        st.metric(
-            "Agent B Accuracy",
-            f"{pressure["accuracy_b"]:.1%}"
-        )
-
-        st.metric(
-            "Agreement Rate",
-            f"{pressure["agreement_rate"]:.1%}"
-        )
-
-        st.metric(
-            "Wrong Agreement",
-            f"{pressure["wrong_given_agreement"]:.1%}"
-        )
-        
 
