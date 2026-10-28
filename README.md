@@ -4,8 +4,9 @@
 
 Agent Arena is an interactive experiment for studying how **reward design changes the behaviour of multiple learning agents**.
 
-Live Demo: https://agent-arena1.streamlit.app/
-<img width="1339" height="713" alt="image" src="https://github.com/user-attachments/assets/e4d447c6-4ded-48b1-9216-01abfc771938" />
+Live Demo: https://agent-arena-2qzj.onrender.com/
+<img width="1319" height="650" alt="image" src="https://github.com/user-attachments/assets/9abc5f37-719d-492c-b70a-bd82a2a5a2a7" />
+
 
 
 The experiment focuses on a simple question:
@@ -295,10 +296,6 @@ Potential extensions include:
 - Statistics
 - Custom multi-agent environment
 
----
 
-## Author
-
-**Chandani**
 
 Built as an experimental project exploring **multi-agent learning, reward design, coordination, and reliability**.
